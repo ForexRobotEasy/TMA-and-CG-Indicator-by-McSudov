@@ -1,0 +1,92 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                               TMA and CG Indicator by McSudov |
+//|                                 Copyright © 2022 Forex Robot Easy Team |
+//|                                                   forexroboteasy.com |
+//+------------------------------------------------------------------+
+#property strict
+
+// Indicator input parameters
+input int period = 20; // Period for TMA calculation
+input double deviation = 1.0; // Deviation value for TMA channel
+input ENUM_APPLIED_PRICE applied_price = PRICE_CLOSE; // Applied price for TMA calculation
+
+// Indicator buffers
+double tmaBuffer[];
+double cgBuffer[];
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   // Indicator buffers mapping
+   SetIndexBuffer(0, tmaBuffer);
+   SetIndexBuffer(1, cgBuffer);
+
+   // Set indicator line labels
+   SetIndexLabel(0, 'TMA');
+   SetIndexLabel(1, 'CG');
+
+   // Set indicator line styles
+   SetIndexStyle(0, DRAW_LINE);
+   SetIndexStyle(1, DRAW_ARROW);
+
+   // Set indicator colors
+   SetIndexColor(0, clrDodgerBlue);
+   SetIndexColor(1, clrRed);
+
+   // Initialize indicator buffers
+   ArrayInitialize(tmaBuffer, EMPTY_VALUE);
+   ArrayInitialize(cgBuffer, EMPTY_VALUE);
+
+   return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+{
+   int limit = rates_total - prev_calculated;
+
+   // Calculate TMA
+   for (int i = 0; i < limit; i++)
+   {
+      tmaBuffer[i] = iCustom(NULL, 0, 'TMA', period, deviation, 0, applied_price, i);
+   }
+
+   // Calculate CG
+   for (int i = 0; i < limit; i++)
+   {
+      cgBuffer[i] = iCustom(NULL, 0, 'CG', period, deviation, 0, applied_price, i);
+   }
+
+   // Generate signals
+   for (int i = 1; i < limit; i++)
+   {
+      if (close[i] > tmaBuffer[i] && close[i - 1] <= tmaBuffer[i - 1])
+      {
+         // Price exited above TMA channel
+         cgBuffer[i] = High[i] + 5 * Point; // Add an offset for arrow display
+         cgBuffer[i - 1] = Low[i - 1] - 5 * Point; // Add an offset for arrow display
+      }
+      else if (close[i] < tmaBuffer[i] && close[i - 1] >= tmaBuffer[i - 1])
+      {
+         // Price exited below TMA channel
+         cgBuffer[i] = Low[i] - 5 * Point; // Add an offset for arrow display
+         cgBuffer[i - 1] = High[i - 1] + 5 * Point; // Add an offset for arrow display
+      }
+   }
+
+   return(rates_total);
+}
